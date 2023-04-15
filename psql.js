@@ -13,6 +13,16 @@ import QRCode from "qrcode";
 app.get("/students", async (req, res) => {
   try {
     const allUsers = await pool.query(
+      "select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno"
+    );
+    res.json(allUsers.rows);
+  } catch (error) {
+    res.json(error.message);
+  }
+});
+app.get("/messStudents", async (req, res) => {
+  try {
+    const allUsers = await pool.query(
       "select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno"
     );
     res.json(allUsers.rows);
@@ -46,14 +56,12 @@ app.post("/save", async (req, res) => {
     let prog = data.program;
     let img = data.img;
     let qr = data.qr;
-    console.log(qr);
     function QR(qr, rollno) {
       QRCode.toFile(
         "C:/Users/Majid Ali//Documents/QR Codes/" + rollno + ".png",
         qr,
         (err) => {
           if (err) throw err;
-          else console.log("QR saved");
         }
       );
     }
@@ -76,17 +84,33 @@ app.post("/save", async (req, res) => {
     res.send(error.message);
   }
 });
+app.post("/saveMessStud", async (req, res) => {
+  try {
+    let data = req.body;
+    let rollno = data.rollno;
+    await pool.query(
+      'INSERT INTO "months" ("rollno","messfee","mStatus",monthname) VALUES ($1)',
+      [rollno, 0, false, new Date().getMonth() + 1]
+    );
+    res.send("Record has been added");
+  } catch (error) {
+    res.send(error.message);
+  }
+});
 app.patch("/studRegister", async (req, res) => {
   try {
     let data = req.body;
+    console.log(data);
     let rollno = data.user;
     let password = data.password;
+    console.log(rollno,password);
     let r = await pool.query(
       "UPDATE students SET password = $1 WHERE rollno = $2",
       [password, rollno]
     );
-    if (r.rowCount > 0) res.send("User Registered Successfully");
-    else res.send("User not Registered Successfully");
+    res.send(r)
+    // if (r.rowCount > 0) res.send("User Registered Successfully");
+    // else res.send("User not Registered Successfully");
   } catch (error) {
     res.send(error.message);
   }
@@ -226,8 +250,8 @@ app.patch("/hostelRegister", async (req, res) => {
       "UPDATE hostelsupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-    if (r.rowCount > 0) res.send("User Registered Successfully");
-    else res.send("User not Registered Successfully");
+   res.send(r);
+ 
   } catch (error) {
     res.send(error.message);
   }
@@ -316,15 +340,13 @@ app.get("/security/:id", async (req, res) => {
 app.patch("/securityRegister", async (req, res) => {
   try {
     let data = req.body;
-    console.log(data);
     let cnic = data.user;
     let password = data.password;
-    console.log(cnic, password);
     let r = await pool.query(
       "UPDATE securitysupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-    if (r.rowCount > 0) res.send("User Registered Successfully");
+    res.send(r);
   } catch (error) {
     res.send(error.message);
   }
@@ -370,9 +392,10 @@ app.post("/exitentry", async (req, res) => {
     let datetime = data.dateTime;
     let sem = data.sem;
     let exen = data.exen;
+    let cnic = data.cnic;
     const result = await pool.query(
-      'INSERT INTO "exitentry" (rollno,semno,datetime,status) VALUES ($1,$2,$3,$4)',
-      [rollno, sem, datetime, exen]
+      'INSERT INTO "exitentry" (rollno,semno,datetime,status,cnic) VALUES ($1,$2,$3,$4,$5)',
+      [rollno, sem, datetime, exen, cnic]
     );
     res.json(result);
   } catch (error) {
@@ -403,8 +426,8 @@ app.patch("/messRegister", async (req, res) => {
       "UPDATE messsupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-    if (r.rowCount > 0) res.send("User Registered Successfully");
-    else res.send("User not Registered Successfully");
+    console.log(r);
+    res.send(r)
   } catch (error) {
     res.send(error.message);
   }
@@ -470,55 +493,76 @@ app.post("/saveMW", async (req, res) => {
   }
 });
 
+// app.post("/markAttendance", async (req, res) => {
+//   try {
+//     let data = req.body;
+//     let rollno = data.rollno;
+//     let price = data.price;
+//     let date = data.date;
+//     let time = data.time;
+//     const result = await pool.query(
+//       'INSERT INTO "attendancesheet" (rollno,price,date,time) VALUES ($1,$2,$3,$4)',
+//       [rollno, price, date, time]
+//     );
+//     const results = await pool.query(
+//       "select messfee from months where rollno=$1",
+//       [rollno]
+//     );
+
+//     let p = results.rows[0]["messfee"] == 0 ? 0 : results.rows[0]["messfee"];
+//     price = price + p;
+//     let month = date.substr(3, 4);
+//     await pool.query(
+//       'UPDATE months SET messfee = $1 WHERE rollno = $2',
+//       [price, rollno]
+//     );
+//     console.log(price,month);
+//     res.json(result);
+//   } catch (error) {
+//     res.json(error.message);
+//   }
+// });
 app.post("/markAttendance", async (req, res) => {
   try {
-    let data = req.body;
-    console.log("data", data);
-    let rollno = data.rollno;
-    let price = data.price;
-    let date = data.date;
-    let time = data.time;
-    const result = await pool.query(
-      'INSERT INTO "attendancesheet" (rollno,price,date,time) VALUES ($1,$2,$3,$4)',
-      [rollno, price, date, time]
-    );
-    const results = await pool.query(
-      "select messfee from months where rollno=$1",
-      [rollno]
-    );
-
-    let p = results.rows[0]["messfee"] == null ? 0 : results.rows[0]["messfee"];
-    price = price + p;
-    let month = date.substr(3, 4);
-    console.log("month: ", month, price);
+    const { rollno, price, date, time } = req.body;
+    const insertQuery = {
+      text: "INSERT INTO attendancesheet (rollno, price, date, time) VALUES ($1, $2, $3, $4)",
+      values: [rollno, price, date, time],
+    };
+    const result = await pool.query(insertQuery);
+    const selectQuery = {
+      text: "SELECT messfee FROM months WHERE rollno = $1",
+      values: [rollno],
+    };
+    const results = await pool.query(selectQuery);
+    const p = results.rows[0].messfee || 0;
+    const newPrice = price + p;
+    const updateQuery = {
+      text: "UPDATE months SET messfee = $1 WHERE rollno = $2",
+      values: [newPrice, rollno],
+    };
+    await pool.query(updateQuery);
     res.json(result);
   } catch (error) {
-    res.json(error.message);
+    console.error(error)
+    if (error.message.includes("duplicate key")) res.json(error.message);
+    else res.status(500).json({ error: error.message });
   }
 });
 
 app.post("/addMenu", async (req, res) => {
   try {
-    let data = req.body;
-
-    let name = data.dishName;
-    let price = data.dishPrice;
-    let date = data.date;
-    let units = data.units;
-    let time = data.time;
+    const { dishName, dishPrice, date, units, time } = req.body;
     const result = await pool.query(
       'INSERT INTO menu(name, price, units, daydate, "time") VALUES ($1,$2,$3,$4,$5)',
-      [name, price, units, date, time]
+      [dishName, dishPrice, units, date, time]
     );
-
-    console.log(result.rowCount);
-    res.json(result);
+     res.json(result);
   } catch (error) {
     res.json(error.message);
   }
 });
 app.get("/getMenu", async (req, res) => {
-  console.log("get menu");
   try {
     const allUsers = await pool.query('select * from "menu"');
     res.json(allUsers.rows);
@@ -533,10 +577,7 @@ app.get("/getMenu", async (req, res) => {
 app.post("/postComplaints", async (req, res) => {
   try {
     let data = req.body;
-    let title = data.title.toString();
-    let body = data.body.toString();
-    let id = data.id.toString();
-    let user = data.user.toString();
+    const { title, body, id, user } = req.body;
     const result = await pool.query(
       'INSERT INTO "Complaints" (title,body,id,complainer) VALUES ($1,$2,$3,$4)',
       [title, body, id, user]
@@ -546,7 +587,16 @@ app.post("/postComplaints", async (req, res) => {
     res.json(error.message);
   }
 });
-
+app.delete("/removeComp/:id", async (req, res) => {
+  try {
+    let id = req.params.id;
+    let r = await pool.query('DELETE FROM "Complaints" WHERE id = $1', [id]);
+    if (r.rowCount > 0) res.send("Complaint deleted");
+    else res.send("Complaint not deleted");
+  } catch (error) {
+    res.send(error.message);
+  }
+});
 app.get("/allComplaints", async (req, res) => {
   try {
     const allUsers = await pool.query('select * from "Complaints"');

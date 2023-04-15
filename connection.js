@@ -14,24 +14,22 @@ var pool = new Pool({
   password: "90opklnm",
   database: "postgres",
 });
-
 app.use(
   cors({
     origin: "*",
   })
 );
-
 app.use(json());
-
-app.listen(port, function () {
-  console.log("started");
+app.listen(port, () => {
+  console.log(`Server is listening on port ${port}.`);
 });
 
-pool.connect(function (error) {
-  if (error) res.json(error);
-  else {
-    console.log("connected at port " + port);
+pool.connect((err) => {
+  if (err) {
+    console.error("Error connecting to database: ", err);
+    return;
   }
+  console.log("Connected to database.");
 });
 
 export {app,pool}
