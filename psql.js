@@ -30,6 +30,16 @@ app.get("/messStudents", async (req, res) => {
     res.json(error.message);
   }
 });
+app.get("/hostelStudents", async (req, res) => {
+  try {
+    const allUsers = await pool.query(
+      `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`    );
+    console.log(allUsers.rows);
+    res.json(allUsers.rows);
+  } catch (error) {
+    res.json(error.message);
+  }
+});
 app.get("/students/:id", async (req, res) => {
   try {
     let id = req.params.id;
@@ -41,21 +51,22 @@ app.get("/students/:id", async (req, res) => {
     res.json(error.message);
   }
 });
+app.get("/studLogin/:id", async (req, res) => {
+  try {
+    let id = req.params.id;
+    const allUsers = await pool.query(
+      `select * from students where students.rollno::BigInt=${id}`
+    );
+    res.json(allUsers.rows);
+  } catch (error) {
+    res.json(error.message);
+  }
+});
 
 app.post("/save", async (req, res) => {
   try {
-    let data = req.body;
-    let name = data.name;
-    let rollno = data.rollno;
-    let dept = data.dept;
-    let age = data.age;
-    let gender = data.gender;
-    let cnic = data.cnic;
-    let semester = data.semester;
-    let hostfee = data.hostfee;
-    let prog = data.program;
-    let img = data.img;
-    let qr = data.qr;
+    const { name, rollno, dept, age, gender, cnic, semester, hostfee, program, img, qr } = req.body;
+   
     function QR(qr, rollno) {
       QRCode.toFile(
         "C:/Users/Majid Ali//Documents/QR Codes/" + rollno + ".png",
@@ -68,7 +79,7 @@ app.post("/save", async (req, res) => {
     QR(qr, rollno);
     await pool.query(
       'INSERT INTO "students" ("sname","rollno","cnic","age","gender","program","image") VALUES ($1,$2,$3,$4,$5,$6,$7)',
-      [name, rollno, cnic, age, gender, prog, img]
+      [name, rollno, cnic, age, gender, program, img]
     );
     await pool.query(
       'INSERT INTO "department" ("dname","rollno") VALUES ($1,$2)',
@@ -89,10 +100,29 @@ app.post("/saveMessStud", async (req, res) => {
     let data = req.body;
     let rollno = data.rollno;
     await pool.query(
-      'INSERT INTO "months" ("rollno","messfee","mStatus",monthname) VALUES ($1)',
+      'INSERT INTO "months" ("rollno","messfee","mStatus",monthname) VALUES ($1,$2,$3,$4)',
       [rollno, 0, false, new Date().getMonth() + 1]
     );
     res.send("Record has been added");
+  } catch (error) {
+    error.message.includes('duplicate key')?res.send("Already, Record has been added"):
+    res.send(error.message);
+  }
+});
+
+app.patch("/saveHostStud", async (req, res) => {
+  try {
+    let data = req.body;
+    let rollno = data.rollno;
+    let status = data.status;
+    console.log(rollno,status);
+    let r = await pool.query(
+      "UPDATE semester SET status = $1 WHERE rollno = $2",
+      [status, rollno]
+    );
+    res.send(r)
+    // if (r.rowCount > 0) res.send("User Registered Successfully");
+    // else res.send("User not Registered Successfully");
   } catch (error) {
     res.send(error.message);
   }
