@@ -78,7 +78,7 @@ app.post("/save", async (req, res) => {
       'INSERT INTO "semester" ("semno","rollno","hostelfee","status") VALUES ($1,$2,$3,$4)',
       [semester, rollno, hostfee, false]
     );
-    await pool.query('INSERT INTO "months" ("rollno") VALUES ($1)', [rollno]);
+    // await pool.query('INSERT INTO "months" ("rollno") VALUES ($1)', [rollno]);
     res.send("Record has been added");
   } catch (error) {
     res.send(error.message);
