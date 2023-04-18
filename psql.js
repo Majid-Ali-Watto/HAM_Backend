@@ -15,6 +15,7 @@ app.get("/students", async (req, res) => {
     const allUsers = await pool.query(
       "select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno"
     );
+  
     res.json(allUsers.rows);
   } catch (error) {
     res.json(error.message);
@@ -34,7 +35,6 @@ app.get("/hostelStudents", async (req, res) => {
   try {
     const allUsers = await pool.query(
       `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`    );
-    console.log(allUsers.rows);
     res.json(allUsers.rows);
   } catch (error) {
     res.json(error.message);
@@ -115,7 +115,6 @@ app.patch("/saveHostStud", async (req, res) => {
     let data = req.body;
     let rollno = data.rollno;
     let status = data.status;
-    console.log(rollno,status);
     let r = await pool.query(
       "UPDATE semester SET status = $1 WHERE rollno = $2",
       [status, rollno]
@@ -130,10 +129,8 @@ app.patch("/saveHostStud", async (req, res) => {
 app.patch("/studRegister", async (req, res) => {
   try {
     let data = req.body;
-    console.log(data);
     let rollno = data.user;
     let password = data.password;
-    console.log(rollno,password);
     let r = await pool.query(
       "UPDATE students SET password = $1 WHERE rollno = $2",
       [password, rollno]
@@ -456,7 +453,6 @@ app.patch("/messRegister", async (req, res) => {
       "UPDATE messsupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-    console.log(r);
     res.send(r)
   } catch (error) {
     res.send(error.message);
@@ -607,14 +603,29 @@ app.get("/getMenu", async (req, res) => {
 app.post("/postComplaints", async (req, res) => {
   try {
     let data = req.body;
-    const { title, body, id, user } = req.body;
+    const { title, body, id, user,status } = req.body;
     const result = await pool.query(
-      'INSERT INTO "Complaints" (title,body,id,complainer) VALUES ($1,$2,$3,$4)',
-      [title, body, id, user]
+      'INSERT INTO "Complaints" (title,body,id,complainer,status) VALUES ($1,$2,$3,$4,$5)',
+      [title, body, id, user,status]
     );
     res.json(result);
   } catch (error) {
     res.json(error.message);
+  }
+});
+app.patch("/updateCompStatus", async (req, res) => {
+  try {
+    let data = req.body;
+    let status = data.status;
+    let compID = data.compID;
+    let r = await pool.query(
+      'UPDATE "Complaints" SET status = $1 WHERE id = $2',
+      [status, compID]
+    );
+    if (r.rowCount > 0) res.send("Status Updated Successfully");
+    else res.send("Status not updated Successfully");
+  } catch (error) {
+    res.send(error.message);
   }
 });
 app.delete("/removeComp/:id", async (req, res) => {
