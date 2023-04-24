@@ -15,7 +15,7 @@ app.get("/students", async (req, res) => {
     const allUsers = await pool.query(
       "select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno"
     );
-  
+
     res.json(allUsers.rows);
   } catch (error) {
     res.json(error.message);
@@ -34,7 +34,8 @@ app.get("/messStudents", async (req, res) => {
 app.get("/hostelStudents", async (req, res) => {
   try {
     const allUsers = await pool.query(
-      `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`    );
+      `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
+    );
     res.json(allUsers.rows);
   } catch (error) {
     res.json(error.message);
@@ -43,9 +44,16 @@ app.get("/hostelStudents", async (req, res) => {
 app.get("/students/:id", async (req, res) => {
   try {
     let id = req.params.id;
-    const allUsers = await pool.query(
+    console.log(id);
+    let allUsers = await pool.query(
       `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno where students.rollno::BigInt=${id}`
     );
+    console.log(allUsers.rowCount);
+
+    if (allUsers.rowCount === 0)
+      allUsers = await pool.query(
+        `select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where students.rollno::BigInt=${id}`
+      );
     res.json(allUsers.rows);
   } catch (error) {
     res.json(error.message);
@@ -65,8 +73,20 @@ app.get("/studLogin/:id", async (req, res) => {
 
 app.post("/save", async (req, res) => {
   try {
-    const { name, rollno, dept, age, gender, cnic, semester, hostfee, program, img, qr } = req.body;
-   
+    const {
+      name,
+      rollno,
+      dept,
+      age,
+      gender,
+      cnic,
+      semester,
+      hostfee,
+      program,
+      img,
+      qr,
+    } = req.body;
+
     function QR(qr, rollno) {
       QRCode.toFile(
         "C:/Users/Majid Ali//Documents/QR Codes/" + rollno + ".png",
@@ -105,8 +125,9 @@ app.post("/saveMessStud", async (req, res) => {
     );
     res.send("Record has been added");
   } catch (error) {
-    error.message.includes('duplicate key')?res.send("Already, Record has been added"):
-    res.send(error.message);
+    error.message.includes("duplicate key")
+      ? res.send("Already, Record has been added")
+      : res.send(error.message);
   }
 });
 
@@ -119,7 +140,7 @@ app.patch("/saveHostStud", async (req, res) => {
       "UPDATE semester SET status = $1 WHERE rollno = $2",
       [status, rollno]
     );
-    res.send(r)
+    res.send(r);
     // if (r.rowCount > 0) res.send("User Registered Successfully");
     // else res.send("User not Registered Successfully");
   } catch (error) {
@@ -135,7 +156,7 @@ app.patch("/studRegister", async (req, res) => {
       "UPDATE students SET password = $1 WHERE rollno = $2",
       [password, rollno]
     );
-    res.send(r)
+    res.send(r);
     // if (r.rowCount > 0) res.send("User Registered Successfully");
     // else res.send("User not Registered Successfully");
   } catch (error) {
@@ -144,39 +165,65 @@ app.patch("/studRegister", async (req, res) => {
 });
 
 app.patch("/update", async (req, res) => {
+  // try {
+  const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN } =
+    req.body;
+  let client = await pool.connect();
   try {
-    let data = req.body;
-    let name = data.name;
-    let rollno = data.rollno;
-    let dept = data.dept;
-    let age = data.age;
-    let gender = data.gender;
-    let cnic = data.cnic;
-    let hostelfee = data.hostfee;
-    let semester = data.semester;
-    let rollN = data.rollN;
-    let r = await pool.query(
-      "UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4,rollno = $5 WHERE rollno = $6",
+    await client.query("BEGIN");
+    let r = await client.query(
+      "UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4, rollno = $5 WHERE rollno = $6",
       [name, cnic, gender, age, rollno, rollN]
     );
-    let s = await pool.query(
-      "UPDATE department SET dname=$1,rollno=$2  WHERE rollno = $3",
-      [dept, rollno, rollN]
+    let s = await client.query(
+      "UPDATE department SET dname=$1 WHERE rollno = $2",
+      [dept, rollno]
     );
-    let t = await pool.query(
-      "Update semester SET semno=$1,rollno=$2,hostelfee=$3,status=$4 WHERE rollno = $5",
-      [semester, rollno, hostelfee, false, rollN]
+    let t = await client.query(
+      "UPDATE semester SET semno=$1, rollno=$2, hostelfee=$3, status=$4 WHERE rollno = $5",
+      [semester, rollno, hostfee, false, rollN]
     );
-    let u = await pool.query("Update months SET rollno=$1  WHERE rollno = $2", [
-      rollno,
-      rollN,
-    ]);
-    if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && u.rowCount > 0)
+    let u = await client.query(
+      "UPDATE months SET rollno=$1 WHERE rollno = $2",
+      [rollno, rollN]
+    );
+    await client.query("COMMIT");
+    if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && u.rowCount > 0) {
+      console.log("Record has been updated");
       res.send("Record has been updated");
-    else res.send("Record has not been updated");
+    } else {
+      console.log("Record has not been updated");
+
+      res.send("Record has not been updated");
+    }
   } catch (error) {
+    await client.query("ROLLBACK");
     res.send(error.message);
+  } finally {
+    client.release();
   }
+  // let r = await pool.query(
+  //   "UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4,rollno = $5 WHERE rollno = $6",
+  //   [name, cnic, gender, age, rollno, rollN]
+  // );
+  // let s = await pool.query(
+  //   "UPDATE department SET dname=$1,rollno=$2  WHERE rollno = $3",
+  //   [dept, rollno, rollN]
+  // );
+  // let t = await pool.query(
+  //   "Update semester SET semno=$1,rollno=$2,hostelfee=$3,status=$4 WHERE rollno = $5",
+  //   [semester, rollno, hostfee, false, rollN]
+  // );
+  // let u = await pool.query("Update months SET rollno=$1  WHERE rollno = $2", [
+  //   rollno,
+  //   rollN,
+  // ]);
+  // if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && u.rowCount > 0)
+  //   res.send("Record has been updated");
+  // else res.send("Record has not been updated");
+  // } catch (error) {
+  //   res.send(error.message);
+  // }
 });
 app.delete("/remove/:id", async (req, res) => {
   try {
@@ -277,8 +324,7 @@ app.patch("/hostelRegister", async (req, res) => {
       "UPDATE hostelsupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-   res.send(r);
- 
+    res.send(r);
   } catch (error) {
     res.send(error.message);
   }
@@ -453,7 +499,7 @@ app.patch("/messRegister", async (req, res) => {
       "UPDATE messsupervisor SET password = $1 WHERE cnic = $2",
       [password, cnic]
     );
-    res.send(r)
+    res.send(r);
   } catch (error) {
     res.send(error.message);
   }
@@ -538,11 +584,10 @@ app.post("/saveMW", async (req, res) => {
 //     let p = results.rows[0]["messfee"] == 0 ? 0 : results.rows[0]["messfee"];
 //     price = price + p;
 //     let month = date.substr(3, 4);
-//     await pool.query(
-//       'UPDATE months SET messfee = $1 WHERE rollno = $2',
-//       [price, rollno]
-//     );
-//     console.log(price,month);
+//     await pool.query("UPDATE months SET messfee = $1 WHERE rollno = $2", [
+//       price,
+//       rollno,
+//     ]);
 //     res.json(result);
 //   } catch (error) {
 //     res.json(error.message);
@@ -570,7 +615,7 @@ app.post("/markAttendance", async (req, res) => {
     await pool.query(updateQuery);
     res.json(result);
   } catch (error) {
-    console.error(error)
+    console.error(error);
     if (error.message.includes("duplicate key")) res.json(error.message);
     else res.status(500).json({ error: error.message });
   }
@@ -583,7 +628,7 @@ app.post("/addMenu", async (req, res) => {
       'INSERT INTO menu(name, price, units, daydate, "time") VALUES ($1,$2,$3,$4,$5)',
       [dishName, dishPrice, units, date, time]
     );
-     res.json(result);
+    res.json(result);
   } catch (error) {
     res.json(error.message);
   }
@@ -603,10 +648,10 @@ app.get("/getMenu", async (req, res) => {
 app.post("/postComplaints", async (req, res) => {
   try {
     let data = req.body;
-    const { title, body, id, user,status } = req.body;
+    const { title, body, id, user, status } = req.body;
     const result = await pool.query(
       'INSERT INTO "Complaints" (title,body,id,complainer,status) VALUES ($1,$2,$3,$4,$5)',
-      [title, body, id, user,status]
+      [title, body, id, user, status]
     );
     res.json(result);
   } catch (error) {
