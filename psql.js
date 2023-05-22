@@ -4,10 +4,10 @@ import { app, pool } from "./connection.js";
 import QRCode from "qrcode";
 import NodeCache from "node-cache";
 const hamCache = new NodeCache();
+
 /////////////////////////////////////////////////
 //////////// student apis //////////////////////////
 ////////////////////////////////////////////////
-
 app.get("/students", async (req, res) => {
 	try {
 		const students = hamCache.get("students");
@@ -27,9 +27,16 @@ app.get("/students", async (req, res) => {
 });
 app.get("/messStudents", async (req, res) => {
 	try {
+		const students = hamCache.get("messStudents");
+		if (students != undefined) {
+			res.json(students);
+			console.log("fetching from cache");
+			return;
+		}
 		const allUsers = await pool.query(
 			"select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno"
 		);
+		hamCache.set("messStudents", allUsers.rows, 1000);
 		res.json(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);
@@ -37,9 +44,17 @@ app.get("/messStudents", async (req, res) => {
 });
 app.get("/hostelStudents", async (req, res) => {
 	try {
+		const students = hamCache.get("hostelStudents");
+		if (students != undefined) {
+			res.json(students);
+			console.log("fetching from cache");
+			return;
+		}
 		const allUsers = await pool.query(
 			`select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
 		);
+		hamCache.set("hostelStudents", allUsers.rows, 1000);
+
 		res.json(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);
@@ -64,7 +79,7 @@ app.get("/students/:id", async (req, res) => {
 app.get("/studLogin/:id", async (req, res) => {
 	try {
 		let id = req.params.id;
-		const allUsers = await pool.query(`select * from students where students.rollno::BigInt=${id}`);
+		const allUsers = await pool.query(`select rollno,password from students where students.rollno::BigInt=${id}`);
 		res.json(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);
@@ -344,7 +359,6 @@ app.get("/security", async (req, res) => {
 		res.json(error.message);
 	}
 });
-
 app.get("/security/:id", async (req, res) => {
 	try {
 		let id = req.params.id;
