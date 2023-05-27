@@ -2,10 +2,10 @@
   "name": "pkg",
   "version": "1.0.0",
   "description": "",
-  "main": "psql.js",
+  "main": "Server.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon psql.js"
+    "start": "nodemon Server.js"
   },
   "author": "",
   "license": "ISC",
