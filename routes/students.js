@@ -195,7 +195,7 @@ StudentRouter.patch("/updateStud", async (req, res) => {
 		]);
 		let u = await client.query("UPDATE months SET rollno=$1 WHERE rollno = $2", [rollno, rollN]);
 		await client.query("COMMIT");
-		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && u.rowCount > 0) {
+		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0) {
 			console.log("Record has been updated");
 			res.send("Record has been updated");
 		} else {
