@@ -7,8 +7,8 @@ import pkg from "pg";
 const { Pool } = pkg;
 import compression from "compression";
 import bodyParser from "body-parser";
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.json({ limit: "5mb" }));
+app.use(bodyParser.urlencoded({ limit: "5mb", extended: true }));
 const port = 3000;
 var pool = new Pool({
 	host: "localhost",

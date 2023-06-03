@@ -59,7 +59,7 @@ StudentRouter.get("/hostelStudents", async (req, res) => {
 	}
 });
 
-StudentRouter.get("/students/:id", async (req, res) => {
+StudentRouter.get("/:id", async (req, res) => {
 	try {
 		let id = req.params.id;
 		console.log(id);
@@ -85,7 +85,7 @@ StudentRouter.get("/studLogin/:id", async (req, res) => {
 	}
 });
 
-StudentRouter.post("/save", async (req, res) => {
+StudentRouter.post("/saveStud", async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query("BEGIN"); // begin transaction
@@ -171,7 +171,7 @@ StudentRouter.patch("/studRegister", async (req, res) => {
 	}
 });
 
-StudentRouter.patch("/update", async (req, res) => {
+StudentRouter.patch("/updateStud", async (req, res) => {
 	// try {
 	const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN } = req.body;
 	let client = await pool.connect();
@@ -232,7 +232,7 @@ StudentRouter.patch("/update", async (req, res) => {
 	//   res.send(error.message);
 	// }
 });
-StudentRouter.delete("/remove/:id", async (req, res) => {
+StudentRouter.delete("/removeStud/:id", async (req, res) => {
 	try {
 		let rollN = req.params.id;
 		let r = await pool.query("DELETE FROM students WHERE rollno = $1", [rollN]);
