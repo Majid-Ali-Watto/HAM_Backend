@@ -56,8 +56,8 @@ HostelRouter.patch("/hostelRegister", async (req, res) => {
 
 HostelRouter.patch("/updateHW", async (req, res) => {
 	try {
-		const { cnic, name, rollN } = req.body;
-		let r = await pool.query("UPDATE hostelsupervisor SET name = $1, cnic=$2 WHERE cnic::BigInt = $3", [name, cnic, rollN]);
+		const { cnic, name, img, rollN } = req.body;
+		let r = await pool.query("UPDATE hostelsupervisor SET name = $1, cnic=$2, image=$3 WHERE cnic::BigInt = $4", [name, cnic, img, rollN]);
 		if (r.rowCount > 0) res.send("User Updated Successfully");
 		else res.send("User not updated Successfully");
 	} catch (error) {
@@ -67,8 +67,8 @@ HostelRouter.patch("/updateHW", async (req, res) => {
 
 HostelRouter.post("/saveHW", async (req, res) => {
 	try {
-		const { cnic, name } = req.body;
-		const result = await pool.query('INSERT INTO "hostelsupervisor" (name,cnic) VALUES ($1,$2)', [name, cnic]);
+		const { cnic, name, img } = req.body;
+		const result = await pool.query('INSERT INTO "hostelsupervisor" (name,cnic,image) VALUES ($1,$2,$3)', [name, cnic, img]);
 		res.json(result.rowCount > 0 ? "User added successfully" : "User not added successfully");
 	} catch (error) {
 		res.json(error.message);

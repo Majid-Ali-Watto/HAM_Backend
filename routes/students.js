@@ -5,6 +5,7 @@ const StudentRouter = Router();
 import NodeCache from "node-cache";
 const hamCache = new NodeCache();
 import QRCode from "qrcode";
+
 // Define student routes
 StudentRouter.get("/", async (req, res) => {
 	try {
@@ -14,9 +15,9 @@ StudentRouter.get("/", async (req, res) => {
 			console.log("fetching from cache");
 			return;
 		}
-		const allUsers = await pool.query(
-			"select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno"
-		);
+		const query =
+			"select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno";
+		const allUsers = await pool.query(query);
 		hamCache.set("students", allUsers.rows, 1000);
 		res.json(allUsers.rows);
 	} catch (error) {
@@ -31,9 +32,9 @@ StudentRouter.get("/messStudents", async (req, res) => {
 			console.log("fetching from cache");
 			return;
 		}
-		const allUsers = await pool.query(
-			"select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno"
-		);
+		const query =
+			"select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno";
+		const allUsers = await pool.query(query);
 		hamCache.set("messStudents", allUsers.rows, 1000);
 		res.json(allUsers.rows);
 	} catch (error) {
@@ -112,6 +113,7 @@ StudentRouter.post("/saveStud", async (req, res) => {
 					}
 					await client.query("COMMIT"); // commit transaction
 					res.send(`${url}`);
+					hamCache.del(["students", "messStudents", "hostelStudents"]);
 				}
 			);
 		}
@@ -147,6 +149,7 @@ StudentRouter.post("/saveMessStud", async (req, res) => {
 			new Date().getMonth() + 1,
 		]);
 		res.send("Record has been added");
+		hamCache.del(["students", "messStudents", "hostelStudents"]);
 	} catch (error) {
 		error.message.includes("duplicate key") ? res.send("Already, Record has been added") : res.send(error.message);
 	}
@@ -157,6 +160,7 @@ StudentRouter.patch("/saveHostStud", async (req, res) => {
 		const { rollno, status } = req.body;
 		let r = await pool.query("UPDATE semester SET status = $1 WHERE rollno = $2", [status, rollno]);
 		res.send(r);
+		hamCache.del(["students", "messStudents", "hostelStudents"]);
 	} catch (error) {
 		res.send(error.message);
 	}
@@ -172,17 +176,17 @@ StudentRouter.patch("/studRegister", async (req, res) => {
 });
 
 StudentRouter.patch("/updateStud", async (req, res) => {
-	// try {
-	const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN } = req.body;
+	const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN, img } = req.body;
 	let client = await pool.connect();
 	try {
 		await client.query("BEGIN");
-		let r = await client.query("UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4, rollno = $5 WHERE rollno = $6", [
+		let r = await client.query("UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4, rollno = $5, image=$6 WHERE rollno = $7", [
 			name,
 			cnic,
 			gender,
 			age,
 			rollno,
+			img,
 			rollN,
 		]);
 		let s = await client.query("UPDATE department SET dname=$1 WHERE rollno = $2", [dept, rollno]);
@@ -198,6 +202,7 @@ StudentRouter.patch("/updateStud", async (req, res) => {
 		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0) {
 			console.log("Record has been updated");
 			res.send("Record has been updated");
+			hamCache.del(["students", "messStudents", "hostelStudents"]);
 		} else {
 			console.log("Record has not been updated");
 
@@ -209,34 +214,13 @@ StudentRouter.patch("/updateStud", async (req, res) => {
 	} finally {
 		client.release();
 	}
-	// let r = await pool.query(
-	//   "UPDATE students SET sname = $1, cnic = $2, gender= $3, age = $4,rollno = $5 WHERE rollno = $6",
-	//   [name, cnic, gender, age, rollno, rollN]
-	// );
-	// let s = await pool.query(
-	//   "UPDATE department SET dname=$1,rollno=$2  WHERE rollno = $3",
-	//   [dept, rollno, rollN]
-	// );
-	// let t = await pool.query(
-	//   "Update semester SET semno=$1,rollno=$2,hostelfee=$3,status=$4 WHERE rollno = $5",
-	//   [semester, rollno, hostfee, false, rollN]
-	// );
-	// let u = await pool.query("Update months SET rollno=$1  WHERE rollno = $2", [
-	//   rollno,
-	//   rollN,
-	// ]);
-	// if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && u.rowCount > 0)
-	//   res.send("Record has been updated");
-	// else res.send("Record has not been updated");
-	// } catch (error) {
-	//   res.send(error.message);
-	// }
 });
 StudentRouter.delete("/removeStud/:id", async (req, res) => {
 	try {
 		let rollN = req.params.id;
 		let r = await pool.query("DELETE FROM students WHERE rollno = $1", [rollN]);
 		if (r.rowCount > 0) res.send("Record has been removed");
+		hamCache.del(["students", "messStudents", "hostelStudents"]);
 	} catch (error) {
 		res.send(error.message);
 	}

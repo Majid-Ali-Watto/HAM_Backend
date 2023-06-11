@@ -38,8 +38,8 @@ MessRouter.get("/:id", async (req, res) => {
 
 MessRouter.patch("/updateMW", async (req, res) => {
 	try {
-		let { user, name, rollN } = req.body;
-		let r = await pool.query("UPDATE messsupervisor SET name = $1, cnic=$2 WHERE cnic = $3", [name, user, rollN]);
+		let { cnic, name, img, rollN } = req.body;
+		let r = await pool.query("UPDATE messsupervisor SET name = $1, cnic=$2, image=$3 WHERE cnic = $4", [name, cnic, img, rollN]);
 		if (r.rowCount > 0) res.send("User Updated Successfully");
 		else res.send("User not updated Successfully");
 	} catch (error) {
@@ -59,10 +59,9 @@ MessRouter.delete("/removeMW/:id", async (req, res) => {
 
 MessRouter.post("/saveMW", async (req, res) => {
 	try {
-		let data = req.body;
-		let cnic = data.cnic;
-		let name = data.name;
-		const result = await pool.query('INSERT INTO "messsupervisor" (name,cnic) VALUES ($1,$2)', [name, cnic]);
+		const { name, cnic, img } = req.body;
+
+		const result = await pool.query('INSERT INTO "messsupervisor" (name,cnic,image) VALUES ($1,$2,$3)', [name, cnic, img]);
 		res.json(result.rowCount > 0 ? "User added successfully" : "User not added successfully");
 	} catch (error) {
 		res.json(error.message);

@@ -3,8 +3,7 @@
 import { pool } from "../connection.js";
 import { Router } from "express";
 const ComplaintsRouter = Router();
-import NodeCache from "node-cache";
-const hamCache = new NodeCache();
+
 
 /////////////////////////////////////////////////
 ///////////////// Complaints ////////////////////
