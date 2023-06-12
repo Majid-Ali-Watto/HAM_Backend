@@ -4,14 +4,15 @@ import { pool } from "../connection.js";
 import { Router } from "express";
 const ComplaintsRouter = Router();
 
-
 /////////////////////////////////////////////////
 ///////////////// Complaints ////////////////////
 ////////////////////////////////////////////////
 
 ComplaintsRouter.post("/postComplaints", async (req, res) => {
+	console.log(req.body);
 	try {
 		const { title, body, id, user, status } = req.body;
+		console.log(id);
 		const result = await pool.query('INSERT INTO "Complaints" (title,body,id,complainer,status) VALUES ($1,$2,$3,$4,$5)', [
 			title,
 			body,
@@ -19,8 +20,10 @@ ComplaintsRouter.post("/postComplaints", async (req, res) => {
 			user,
 			status,
 		]);
+		console.log(result);
 		res.json(result);
 	} catch (error) {
+		console.log(error.message);
 		res.json(error.message);
 	}
 });

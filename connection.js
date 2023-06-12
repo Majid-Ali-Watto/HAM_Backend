@@ -15,7 +15,7 @@ var pool = new Pool({
 	user: "postgres",
 	port: 5432,
 	password: "90opklnm",
-	database: "ham",
+	database: "ham_final",
 });
 app.use(
 	cors({
