@@ -19,8 +19,13 @@ MessRouter.get("/", async (req, res) => {
 MessRouter.patch("/messRegister", async (req, res) => {
 	try {
 		let { user, password } = req.body;
-		let r = await pool.query("UPDATE messsupervisor SET password = $1 WHERE cnic = $2", [password, user]);
-		res.send(r);
+		let s = null;
+		// let r = await pool.query("select password from messsupervisor WHERE cnic::bigInt = $1", [user]);
+		// console.log(r.rowCount);
+		// if (r.rowCount < 1) {
+		s = await pool.query("UPDATE messsupervisor SET password = $1 WHERE cnic = $2", [password, user]);
+		res.send(s);
+		// } else res.send({ msg: "Already, You are registered" });
 	} catch (error) {
 		res.send(error.message);
 	}

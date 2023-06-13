@@ -16,7 +16,7 @@ StudentRouter.get("/", async (req, res) => {
 			console.log("fetching from cache", students);
 			return;
 		}
-		const query = `select * from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno`;
+		const query = `SELECT DISTINCT students.rollno, sname, dname, cnic, program, semno, image, status, hostelfee, students.age, gender FROM students INNER JOIN department ON students.rollno = department.rollno INNER JOIN semester ON students.rollno = semester.rollno INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigint`;
 		const allUsers = await pool.query(query);
 		hamCache.set("students", allUsers.rows, 1000);
 		res.json(allUsers.rows);
@@ -32,7 +32,7 @@ StudentRouter.get("/messStudents", async (req, res) => {
 			console.log("fetching from cache");
 			return;
 		}
-		const query = `select * from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno`;
+		const query = `select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno Inner JOIN months ON students.rollno = months.rollno`;
 		const allUsers = await pool.query(query);
 		hamCache.set("messStudents", allUsers.rows, 1000);
 		res.json(allUsers.rows);
@@ -49,7 +49,7 @@ StudentRouter.get("/hostelStudents", async (req, res) => {
 			return;
 		}
 		const allUsers = await pool.query(
-			`select * from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
+			`select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
 		);
 		hamCache.set("hostelStudents", allUsers.rows, 1000);
 
@@ -70,16 +70,43 @@ StudentRouter.post("/getMonthFee", async (req, res) => {
 		res.json(error.message);
 	}
 });
+StudentRouter.post("/getSemesterFee", async (req, res) => {
+	try {
+		const { sem, rollno } = req.body;
+		console.log(req.body);
+
+		let allUsers = await pool.query(
+			`select distinct students.rollno,sname,dname,cnic,program,semno,image,hostelfee,status from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.rollno=$1 and semester.semno=$2`,
+			[rollno, sem]
+		);
+		console.log(allUsers.rows);
+		res.json(allUsers.rows);
+	} catch (error) {
+		res.json(error.message);
+	}
+});
+StudentRouter.post("/getSemester", async (req, res) => {
+	try {
+		const { rollno } = req.body;
+		console.log(rollno);
+
+		let allUsers = await pool.query(`select max(semno) from semester where rollno=$1`, [rollno]);
+		console.log(allUsers.rows[0].max);
+		res.json(allUsers.rows[0].max);
+	} catch (error) {
+		res.json(error.message);
+	}
+});
 StudentRouter.get("/:id", async (req, res) => {
 	try {
 		let id = req.params.id;
 		console.log(id);
 		let allUsers = await pool.query(
-			`select * from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno inner join months on students.rollno=months.rollno where students.rollno::BigInt=${id}`
+			`SELECT DISTINCT students.rollno, sname, dname, cnic, program, semno, image, status, hostelfee, students.age, gender FROM students INNER JOIN department ON students.rollno = department.rollno INNER JOIN semester ON students.rollno = semester.rollno INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigint inner join months on students.rollno=months.rollno where students.rollno::BigInt=${id}`
 		);
 		if (allUsers.rowCount === 0)
 			allUsers = await pool.query(
-				`select * from students Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where students.rollno::BigInt=${id}`
+				`SELECT DISTINCT students.rollno, sname, dname, cnic, program, semno, image, status, hostelfee, students.age, gender FROM students INNER JOIN department ON students.rollno = department.rollno INNER JOIN semester ON students.rollno = semester.rollno INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigint WHERE students.rollno::bigint=${id}`
 			);
 		res.json(allUsers.rows);
 	} catch (error) {
@@ -89,7 +116,7 @@ StudentRouter.get("/:id", async (req, res) => {
 StudentRouter.get("/studLogin/:id", async (req, res) => {
 	try {
 		let id = req.params.id;
-		const allUsers = await pool.query(`select rollno,password,cnic from students where students.rollno::BigInt=${id}`);
+		const allUsers = await pool.query(`select rollno,password,cnic from students where students.rollno::BigInt=$1`, [id]);
 		res.json(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);
@@ -137,7 +164,7 @@ StudentRouter.post("/saveStud", async (req, res) => {
 			program,
 			rollno,
 		]);
-		await client.query('INSERT INTO "Images" ("image","imgId") VALUES ($1,$2)', [img, rollno]);
+		await client.query('INSERT INTO "Images" ("image","imgId") VALUES ($1,$2)', [img, cnic]);
 		await client.query('INSERT INTO "department" ("dname","rollno") VALUES ($1,$2)', [dept, rollno]);
 		await client.query('INSERT INTO "semester" ("semno","rollno","hostelfee","status") VALUES ($1,$2,$3,$4)', [semester, rollno, hostfee, false]);
 		QR(qr, rollno);
@@ -182,15 +209,20 @@ StudentRouter.patch("/saveHostStud", async (req, res) => {
 StudentRouter.patch("/studRegister", async (req, res) => {
 	try {
 		const { user, password } = req.body;
-		let r = await pool.query("UPDATE students SET password = $1 WHERE rollno = $2", [password, user]);
-		res.send(r);
+		let r = null;
+		const allUsers = await pool.query(`select password from students where students.rollno::BigInt=$1`, [user]);
+		if (allUsers.rowCount < 1) {
+			r = await pool.query("UPDATE students SET password = $1 WHERE rollno = $2", [password, user]);
+			res.send(r);
+		} else res.send({ msg: "Already, You are registered" });
 	} catch (error) {
 		res.send(error.message);
 	}
 });
 
 StudentRouter.patch("/updateStud", async (req, res) => {
-	const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN, img } = req.body;
+	console.log(req.body);
+	const { name, rollno, dept, age, gender, cnic, hostfee, semester, rollN, img, prevCNIC, prevRegNo } = req.body;
 	let client = await pool.connect();
 	try {
 		await client.query("BEGIN");
@@ -201,28 +233,33 @@ StudentRouter.patch("/updateStud", async (req, res) => {
 			age,
 			rollno,
 			cnic,
-			rollN,
+			prevRegNo,
 		]);
-		let s = await client.query("UPDATE department SET dname=$1 WHERE rollno = $2", [dept, rollno]);
+		let s = await client.query("UPDATE department SET dname=$1,rollno=$2 WHERE rollno = $3", [dept, rollno, prevRegNo]);
 		let t = await client.query("UPDATE semester SET semno=$1, rollno=$2, hostelfee=$3, status=$4 WHERE rollno = $5", [
 			semester,
 			rollno,
 			hostfee,
 			false,
-			rollN,
+			prevRegNo,
 		]);
-		let v = await pool.query(`UPDATE "Images" SET "imgId" = $1, image=$2 WHERE "imgId" = $3`, [cnic, img, cnic]);
+		let v = 0;
+		if (img == undefined || img == "") {
+			v = 1;
+		} else v = await pool.query(`UPDATE "Images" SET "imgId" = $1, image=$2 WHERE "imgId" = $3`, [cnic, img, prevCNIC]);
 
-		let u = await client.query("UPDATE months SET rollno=$1 WHERE rollno = $2", [rollno, rollN]);
 		await client.query("COMMIT");
-		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && v.rowCount > 0) {
+		let u = await client.query("UPDATE months SET rollno=$1 WHERE rollno = $2", [rollno, prevRegNo]);
+		console.log(r.rowCount, s.rowCount, t.rowCount, v.rowCount, u.rowCount);
+		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && (v.rowCount > 0 || v == 1)) {
+			hamCache.del(["students", "messStudents", "hostelStudents"]);
 			console.log("Record has been updated");
 			res.send("Record has been updated");
-			hamCache.del(["students", "messStudents", "hostelStudents"]);
 		} else {
 			console.log("Record has not been updated");
 
 			res.send("Record has not been updated");
+			await client.query("ROLLBACK");
 		}
 	} catch (error) {
 		await client.query("ROLLBACK");
@@ -235,16 +272,20 @@ StudentRouter.delete("/removeStud/:id", async (req, res) => {
 	let client = await pool.connect();
 	try {
 		await client.query("BEGIN");
-
-		let rollN = req.params.id;
-		let r = await pool.query("DELETE FROM students WHERE rollno = $1", [rollN]);
-		let s = await client.query("DELETE FROM department WHERE rollno = $1", [rollN]);
-		let t = await client.query("DELETE FROM semester WHERE rollno = $1", [rollN]);
-		let u = await client.query("DELETE FROM months WHERE rollno = $1", [rollN]);
-		let v = await client.query(`DELETE FROM "Images" WHERE imgId = $1`, [rollN]);
+		let data = req.params.id;
+		const rollNCNIC = data.split(",");
+		let r = await pool.query("DELETE FROM students WHERE rollno = $1", [rollNCNIC[0]]);
+		let s = await client.query("DELETE FROM department WHERE rollno = $1", [rollNCNIC[0]]);
+		let t = await client.query("DELETE FROM semester WHERE rollno = $1", [rollNCNIC[0]]);
+		let v = await client.query(`DELETE FROM "Images" WHERE "imgId" = $1`, [rollNCNIC[1]]);
 		await client.query("COMMIT");
-		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && v.rowCount > 0) res.send("Record has been removed");
-		hamCache.del(["students", "messStudents", "hostelStudents"]);
+		let u = await client.query("DELETE FROM months WHERE rollno = $1", [rollNCNIC[0]]);
+		await client.query(`DELETE FROM "Complaints" WHERE complainer = $1`, [rollNCNIC[1]]);
+		await client.query("DELETE FROM exitentry WHERE rollno = $1", [rollNCNIC[0]]);
+		if (r.rowCount > 0 && s.rowCount > 0 && t.rowCount > 0 && v.rowCount > 0) {
+			res.send("Record has been removed");
+			hamCache.del(["students", "messStudents", "hostelStudents"]);
+		} else await client.query("ROLLBACK");
 	} catch (error) {
 		await client.query("ROLLBACK");
 		res.send(error.message);

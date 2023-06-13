@@ -10,7 +10,6 @@ ExitEntryRouter.post("/getExitEntry", async (req, res) => {
 	try {
 		const { rollno, sems } = req.body;
 		const allUsers = await pool.query(`SELECT * FROM exitentry where rollno = $1 and semno=$2`, [rollno, sems]);
-		allUsers.rows;
 		res.json(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);

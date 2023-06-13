@@ -51,8 +51,12 @@ SecurityRouter.get("/:id", async (req, res) => {
 SecurityRouter.patch("/securityRegister", async (req, res) => {
 	try {
 		const { user, password } = req.body;
-		let r = await pool.query("UPDATE securitysupervisor SET password = $1 WHERE cnic = $2", [password, user]);
-		res.send(r);
+		let s = null;
+		let r = await pool.query("select password from securitysupervisor WHERE cnic = $1", [user]);
+		if (r.rowCount < 1) {
+			s = await pool.query("UPDATE securitysupervisor SET password = $1 WHERE cnic = $2", [password, user]);
+			res.send(s);
+		} else res.send({ msg: "Already, You are registered" });
 	} catch (error) {
 		res.send(error.message);
 	}

@@ -48,9 +48,12 @@ HostelRouter.get("/", async (req, res) => {
 HostelRouter.post("/getHostelFee", async (req, res) => {
 	try {
 		const { rollno } = req.body;
-		const allUsers = await pool.query(`SELECT * FROM semester where rollno = $1`, [rollno]);
-		allUsers.rows;
+		const allUsers = await pool.query(`SELECT * FROM semester Inner Join months On semester.rollno=months.rollno  where semester.rollno = $1`, [
+			rollno,
+		]);
+		if (allUsers.rowCount < 1) allUsers = await pool.query(`SELECT * FROM semester where rollno = $1`, [rollno]);
 		res.json(allUsers.rows);
+		console.log(allUsers.rows);
 	} catch (error) {
 		res.json(error.message);
 	}
@@ -58,8 +61,12 @@ HostelRouter.post("/getHostelFee", async (req, res) => {
 HostelRouter.patch("/hostelRegister", async (req, res) => {
 	try {
 		const { user, password } = req.body;
-		let r = await pool.query("UPDATE hostelsupervisor SET password = $1 WHERE cnic = $2", [password, user]);
-		res.send(r);
+		let s = null;
+		let r = await pool.query("select password from hostelsupervisor WHERE cnic = $1", [user]);
+		if (r.rowCount < 1) {
+			s = await pool.query("UPDATE hostelsupervisor SET password = $1 WHERE cnic = $2", [password, user]);
+			res.send(s);
+		} else res.send({ msg: "Already, You are registered" });
 	} catch (error) {
 		res.send(error.message);
 	}
