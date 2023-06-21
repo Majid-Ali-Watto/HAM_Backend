@@ -11,6 +11,7 @@ MessRouter.get("/", async (req, res) => {
 	try {
 		const allUsers = await pool.query(`select * from messsupervisor INNER JOIN "Images" ON messsupervisor."imgId" = "Images"."imgId"`);
 		res.json(allUsers.rows);
+	
 	} catch (error) {
 		res.json(error.message);
 	}
@@ -19,13 +20,14 @@ MessRouter.get("/", async (req, res) => {
 MessRouter.patch("/messRegister", async (req, res) => {
 	try {
 		let { user, password } = req.body;
+		console.log(req.body);
 		let s = null;
-		// let r = await pool.query("select password from messsupervisor WHERE cnic::bigInt = $1", [user]);
-		// console.log(r.rowCount);
-		// if (r.rowCount < 1) {
+		let r = await pool.query("select password from messsupervisor WHERE cnic::bigInt = $1", [user]);
+	
+		if (r.rows[0].password==null) {
 		s = await pool.query("UPDATE messsupervisor SET password = $1 WHERE cnic = $2", [password, user]);
 		res.send(s);
-		// } else res.send({ msg: "Already, You are registered" });
+		 } else res.send({ msg: "Already, You are registered" });
 	} catch (error) {
 		res.send(error.message);
 	}
@@ -112,12 +114,12 @@ MessRouter.post("/markAttendance", async (req, res) => {
 		let date = data.date;
 		let time = data.time;
 		const result = await pool.query('INSERT INTO "attendancesheet" (rollno,price,date,time) VALUES ($1,$2,$3,$4)', [rollno, price, date, time]);
-		const results = await pool.query("select messfee from months where rollno=$1", [rollno]);
+		const results = await pool.query("select messfee from months where rollno=$1 and monthname=$2", [rollno,new Date().getMonth()+1]);
 
 		let p = results.rows[0]["messfee"] == 0 ? 0 : results.rows[0]["messfee"];
 		price = price + p;
 		let month = date.substr(3, 4);
-		await pool.query("UPDATE months SET messfee = $1 WHERE rollno = $2", [price, rollno]);
+		await pool.query("UPDATE months SET messfee = $1 WHERE rollno = $2 and monthname=$3", [price, rollno,new Date().getMonth()+1]);
 		res.json(result);
 	} catch (error) {
 		res.json(error.message);
@@ -169,13 +171,16 @@ MessRouter.post("/addMenu", async (req, res) => {
 MessRouter.post("/editMenu", async (req, res) => {
 	try {
 		const { dishName, dishPrice, date, units, time } = req.body;
-		const result = await pool.query('Update menu SET name=$1, price=$2, units=$3, daydate=$4, "time"=$5 WHERE daydate=$4 AND "time"=$5', [
+		const result = await pool.query('Update menu SET name=$1, price=$2, units=$3, daydate=$4, "time"=$5 WHERE daydate=$6 AND "time"=$7', [
 			dishName,
 			dishPrice,
 			units,
 			date,
 			time,
+			date,
+			time,
 		]);
+		console.log(result);
 		res.json(result);
 	} catch (error) {
 		res.json(error.message);

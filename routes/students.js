@@ -10,10 +10,9 @@ import QRCode from "qrcode";
 StudentRouter.get("/", async (req, res) => {
 	try {
 		const students = hamCache.get("students");
-		console.log("students from cache", students);
 		if (students != undefined) {
 			res.json(students);
-			console.log("fetching from cache", students);
+			console.log("fetching from cache");
 			return;
 		}
 		const query = `SELECT DISTINCT students.rollno, sname, dname, cnic, program, semno, image, status, hostelfee, students.age, gender FROM students INNER JOIN department ON students.rollno = department.rollno INNER JOIN semester ON students.rollno = semester.rollno INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigint`;
@@ -32,7 +31,7 @@ StudentRouter.get("/messStudents", async (req, res) => {
 			console.log("fetching from cache");
 			return;
 		}
-		const query = `select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno Inner JOIN months ON students.rollno = months.rollno`;
+		const query = `select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigInt Inner join department on students.rollno::bigInt=department.rollno::bigInt inner join semester on students.rollno::bigInt=semester.rollno::bigInt Inner JOIN months ON students.rollno::bigInt = months.rollno::bigInt`;
 		const allUsers = await pool.query(query);
 		hamCache.set("messStudents", allUsers.rows, 1000);
 		res.json(allUsers.rows);
@@ -49,7 +48,7 @@ StudentRouter.get("/hostelStudents", async (req, res) => {
 			return;
 		}
 		const allUsers = await pool.query(
-			`select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
+			`select distinct students.rollno,sname,dname,cnic,program,semno,image from students INNER JOIN "Images" ON students.cnic = "Images"."imgId"::bigint Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.status=${true}`
 		);
 		hamCache.set("hostelStudents", allUsers.rows, 1000);
 
@@ -70,13 +69,25 @@ StudentRouter.post("/getMonthFee", async (req, res) => {
 		res.json(error.message);
 	}
 });
+StudentRouter.post("/getMessFee", async (req, res) => {
+	try {
+		const {rollno } = req.body;
+		console.log(req.body);
+
+		let allUsers = await pool.query(`select * from months where rollno::BigInt=$1`, [rollno]);
+		console.log(allUsers.rows);
+		res.json(allUsers.rows);
+	} catch (error) {
+		res.json(error.message);
+	}
+});
 StudentRouter.post("/getSemesterFee", async (req, res) => {
 	try {
 		const { sem, rollno } = req.body;
 		console.log(req.body);
-
+// select distinct students.rollno,sname,dname,cnic,program,semno,image,hostelfee,status from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.rollno=$1 and semester.semno=$2
 		let allUsers = await pool.query(
-			`select distinct students.rollno,sname,dname,cnic,program,semno,image,hostelfee,status from students INNER JOIN "Images" ON students.rollno = "Images"."imgId" Inner join department on students.rollno=department.rollno inner join semester on students.rollno=semester.rollno where semester.rollno=$1 and semester.semno=$2`,
+			`select hostelfee,status from students inner join semester on students.rollno=semester.rollno where semester.rollno=$1 and semester.semno=$2`,
 			[rollno, sem]
 		);
 		console.log(allUsers.rows);
@@ -137,8 +148,8 @@ StudentRouter.post("/saveStud", async (req, res) => {
 					errorCorrectionLevel: "H",
 					margin: 1,
 					color: {
-						dark: "#000000",
-						light: "#ffffff",
+						dark: "#434fff",
+						light: "#ffff",
 					},
 					width: 400, // width in pixels
 					height: 400, // height in pixels
@@ -210,8 +221,9 @@ StudentRouter.patch("/studRegister", async (req, res) => {
 	try {
 		const { user, password } = req.body;
 		let r = null;
-		const allUsers = await pool.query(`select password from students where students.rollno::BigInt=$1`, [user]);
-		if (allUsers.rowCount < 1) {
+		const s = await pool.query(`select password from students where students.rollno::BigInt=$1`, [user]);
+		
+		if (s.rows[0].password==null) {
 			r = await pool.query("UPDATE students SET password = $1 WHERE rollno = $2", [password, user]);
 			res.send(r);
 		} else res.send({ msg: "Already, You are registered" });
